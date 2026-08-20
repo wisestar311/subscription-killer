@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
   let sentCount = 0;
 
-  for (const [userId, subs] of userMap) {
+  for (const [userId, subs] of Array.from(userMap.entries())) {
     try {
       const { data: userData } = await supabase.auth.admin.getUserById(userId);
       const email = userData?.user?.email;
