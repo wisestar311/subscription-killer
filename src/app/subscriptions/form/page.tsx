@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-export default function SubscriptionFormPage() {
+function SubscriptionForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
@@ -155,5 +155,13 @@ export default function SubscriptionFormPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function SubscriptionFormPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center">로딩 중...</div>}>
+      <SubscriptionForm />
+    </Suspense>
   );
 }
