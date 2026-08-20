@@ -31,6 +31,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // 매 요청마다 세션 갱신 (이게 중요)
   const {
     data: { user },
   } = await supabase.auth.getUser();
