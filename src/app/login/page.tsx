@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -10,15 +10,24 @@ export default function LoginPage() {
 
   const supabase = createClient();
 
+  // 예전에 입력한 이메일 불러오기
+  useEffect(() => {
+    const saved = localStorage.getItem('saved_email');
+    if (saved) setEmail(saved);
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
+    // 이메일 저장
+    localStorage.setItem('saved_email', email);
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `http://localhost:3000/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
