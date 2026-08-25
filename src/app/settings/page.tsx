@@ -8,6 +8,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState('');
   const [telegramChatId, setTelegramChatId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState('');
 
   const supabase = createClient();
@@ -45,18 +46,41 @@ export default function SettingsPage() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
+    const cleaned = telegramChatId.trim();
+
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
-      telegram_chat_id: telegramChatId,
+      telegram_chat_id: cleaned,
     });
 
     if (error) {
       setMessage('저장 실패: ' + error.message);
     } else {
+      setTelegramChatId(cleaned);
       setMessage('텔레그램 연결이 저장되었습니다.');
     }
 
     setLoading(false);
+  };
+
+  const handleTestTelegram = async () => {
+    setTesting(true);
+    setMessage('');
+
+    try {
+      const res = await fetch('/api/telegram/test', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage('테스트 실패: ' + (data.error || '알 수 없는 오류'));
+      } else {
+        setMessage('테스트 알림을 보냈습니다. 텔레그램을 확인하세요.');
+      }
+    } catch {
+      setMessage('테스트 요청 중 오류가 발생했습니다.');
+    }
+
+    setTesting(false);
   };
 
   const handleLogout = async () => {
@@ -96,7 +120,17 @@ export default function SettingsPage() {
           {loading ? '저장 중...' : '텔레그램 연결 저장'}
         </button>
 
-        {message && <p className="text-sm text-center text-green-600">{message}</p>}
+        <button
+          onClick={handleTestTelegram}
+          disabled={testing || !telegramChatId}
+          className="w-full bg-blue-600 text-white py-2.5 rounded-lg disabled:opacity-50"
+        >
+          {testing ? '보내는 중...' : '테스트 알림 보내기'}
+        </button>
+
+        {message && (
+          <p className="text-sm text-center text-gray-700 whitespace-pre-wrap">{message}</p>
+        )}
       </div>
 
       <button
