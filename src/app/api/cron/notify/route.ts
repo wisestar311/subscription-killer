@@ -18,11 +18,14 @@ export async function GET(request: Request) {
   const targetDate = new Date(today);
   targetDate.setDate(today.getDate() + 2);
   const targetDay = targetDate.getDate();
+  const targetMonth = targetDate.getMonth() + 1;
   const currentMonth = today.toISOString().slice(0, 7);
 
   const { data: subscriptions, error } = await supabase
     .from('subscriptions')
-    .select('id, name, price, billing_day, cancel_url, last_used_month, user_id')
+    .select(
+      'id, name, price, billing_day, billing_cycle, billing_month, expires_at, cancel_url, last_used_month, user_id'
+    )
     .eq('is_active', true)
     .eq('billing_day', targetDay);
 
@@ -30,9 +33,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const targets = (subscriptions || []).filter(
-    (s) => s.last_used_month !== currentMonth
-  );
+  const targets = (subscriptions || []).filter((s) => {
+    if (s.last_used_month === currentMonth) return false;
+
+    // 만료된 구독은 알림 제외
+    if (s.expires_at) {
+      const exp = new Date(s.expires_at);
+      if (!Number.isNaN(exp.getTime()) && exp < today) return false;
+    }
+
+    const cycle = s.billing_cycle || 'monthly';
+    if (cycle === 'annual') {
+      return Number(s.billing_month) === targetMonth;
+    }
+    return true;
+  });
 
   if (targets.length === 0) {
     return NextResponse.json({ success: true, sent: 0 });
@@ -64,14 +79,20 @@ export async function GET(request: Request) {
       if (!email && !telegramChatId) continue;
 
       const lines = subs.map((s) => {
-        let line = `• ${s.name} (${s.price.toLocaleString()}원) - ${s.billing_day}일 결제`;
+        const cycle = s.billing_cycle || 'monthly';
+        const when =
+          cycle === 'annual'
+            ? `매년 ${s.billing_month}월 ${s.billing_day}일`
+            : `매월 ${s.billing_day}일`;
+        let line = `• ${s.name} (${s.price.toLocaleString()}원) - ${when} 결제`;
+        if (s.expires_at) line += `\n  만료: ${s.expires_at}`;
         if (s.cancel_url) line += `\n  해지: ${s.cancel_url}`;
         return line;
       });
 
       const message = `[구독 킬러] 결제 2일 전 알림\n\n${lines.join(
         '\n\n'
-      )}\n\n이번 달 사용하지 않았다면 해지하세요.`;
+      )}\n\n사용하지 않았다면 해지하세요.`;
 
       if (email) {
         await sendEmail({

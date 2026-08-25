@@ -11,7 +11,10 @@ function SubscriptionForm() {
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [billingMonth, setBillingMonth] = useState('8');
   const [billingDay, setBillingDay] = useState('1');
+  const [expiresAt, setExpiresAt] = useState('');
   const [cancelUrl, setCancelUrl] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +33,10 @@ function SubscriptionForm() {
       if (data) {
         setName(data.name);
         setPrice(String(data.price));
+        setBillingCycle(data.billing_cycle === 'annual' ? 'annual' : 'monthly');
+        setBillingMonth(String(data.billing_month || 8));
         setBillingDay(String(data.billing_day));
+        setExpiresAt(data.expires_at || '');
         setCancelUrl(data.cancel_url || '');
       }
     };
@@ -50,7 +56,10 @@ function SubscriptionForm() {
     const payload = {
       name,
       price: Number(price),
+      billing_cycle: billingCycle,
+      billing_month: billingCycle === 'annual' ? Number(billingMonth) : null,
       billing_day: Number(billingDay),
+      expires_at: expiresAt || null,
       cancel_url: cancelUrl || null,
       user_id: user.id,
     };
@@ -89,7 +98,7 @@ function SubscriptionForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">월 금액 (원)</label>
+          <label className="block text-sm font-medium mb-1">금액 (원)</label>
           <input
             type="number"
             value={price}
@@ -101,6 +110,35 @@ function SubscriptionForm() {
         </div>
 
         <div>
+          <label className="block text-sm font-medium mb-1">결제 주기</label>
+          <select
+            value={billingCycle}
+            onChange={(e) => setBillingCycle(e.target.value as 'monthly' | 'annual')}
+            className="w-full border rounded-lg px-3 py-2"
+          >
+            <option value="monthly">매월</option>
+            <option value="annual">매년 (연정액)</option>
+          </select>
+        </div>
+
+        {billingCycle === 'annual' && (
+          <div>
+            <label className="block text-sm font-medium mb-1">결제 월</label>
+            <select
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                <option key={month} value={month}>
+                  {month}월
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div>
           <label className="block text-sm font-medium mb-1">결제일</label>
           <select
             value={billingDay}
@@ -109,10 +147,21 @@ function SubscriptionForm() {
           >
             {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
               <option key={day} value={day}>
-                매월 {day}일
+                {billingCycle === 'annual' ? `매년 ${billingMonth}월 ${day}일` : `매월 ${day}일`}
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">구독 만료일 (선택)</label>
+          <input
+            type="date"
+            value={expiresAt}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+          />
+          <p className="text-xs text-gray-500 mt-1">비워두면 만료일 없음</p>
         </div>
 
         <div>

@@ -5,6 +5,20 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Subscription } from '@/types/subscription';
 
+function formatBilling(sub: Subscription) {
+  if (sub.billing_cycle === 'annual') {
+    return `매년 ${sub.billing_month || '?'}월 ${sub.billing_day}일`;
+  }
+  return `매월 ${sub.billing_day}일`;
+}
+
+function formatExpiry(expiresAt: string | null) {
+  if (!expiresAt) return null;
+  const d = new Date(expiresAt);
+  if (Number.isNaN(d.getTime())) return expiresAt;
+  return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} 만료`;
+}
+
 export default function HomePage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [thisMonthTotal, setThisMonthTotal] = useState(0);
@@ -39,11 +53,15 @@ export default function HomePage() {
       return;
     }
 
-    const list = data || [];
+    const list = (data || []) as Subscription[];
     setSubscriptions(list);
-    const total = list.reduce((sum, s) => sum + s.price, 0);
-    setThisMonthTotal(total);
-    setNextMonthTotal(total);
+
+    // 월간 결제만 이번/다음 달 총액에 포함 (연정액은 별도)
+    const monthlyTotal = list
+      .filter((s) => (s.billing_cycle || 'monthly') === 'monthly')
+      .reduce((sum, s) => sum + s.price, 0);
+    setThisMonthTotal(monthlyTotal);
+    setNextMonthTotal(monthlyTotal);
     setLoading(false);
   };
 
@@ -80,7 +98,7 @@ export default function HomePage() {
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm mb-5">
-        <p className="text-sm text-gray-500">이번 달 결제 총액</p>
+        <p className="text-sm text-gray-500">이번 달 결제 총액 (월간)</p>
         <p className="text-3xl font-bold mt-1">
           {thisMonthTotal.toLocaleString()}
           <span className="text-lg font-medium ml-1">원</span>
@@ -117,14 +135,19 @@ export default function HomePage() {
         ) : (
           filteredList.map((sub) => {
             const isUsed = sub.last_used_month === currentMonth;
+            const expiryText = formatExpiry(sub.expires_at);
             return (
               <div key={sub.id} className="bg-white rounded-2xl p-4 shadow-sm">
                 <Link href={`/subscriptions/form?id=${sub.id}`} className="block">
                   <div>
                     <h3 className="font-semibold">{sub.name}</h3>
                     <p className="text-sm text-gray-500 mt-0.5">
-                      매월 {sub.billing_day}일 · {sub.price.toLocaleString()}원
+                      {formatBilling(sub)} · {sub.price.toLocaleString()}원
+                      {sub.billing_cycle === 'annual' ? ' (연)' : ''}
                     </p>
+                    {expiryText && (
+                      <p className="text-xs text-orange-600 mt-1">{expiryText}</p>
+                    )}
                   </div>
                 </Link>
 
