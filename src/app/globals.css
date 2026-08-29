@@ -201,6 +201,17 @@ a {
   font-size: 0.6rem;
 }
 
+.calendar-entry-description {
+  display: block;
+  overflow: hidden;
+  color: currentColor;
+  font-size: 0.58rem;
+  font-weight: 500;
+  opacity: 0.7;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .month-button {
   display: grid;
   width: 2rem;

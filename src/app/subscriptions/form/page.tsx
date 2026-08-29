@@ -13,6 +13,7 @@ function SubscriptionForm() {
   const supabase = useMemo(() => createClient(), []);
 
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [expenseType, setExpenseType] = useState<'subscription' | 'fixed'>('subscription');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
@@ -28,7 +29,7 @@ function SubscriptionForm() {
     if (!id) return;
     const { data, error: fetchError } = await supabase
       .from('subscriptions')
-      .select('name, price, expense_type, billing_cycle, billing_month, billing_day, expires_at, cancel_url')
+      .select('name, description, price, expense_type, billing_cycle, billing_month, billing_day, expires_at, cancel_url')
       .eq('id', id)
       .eq('is_active', true)
       .maybeSingle();
@@ -37,6 +38,7 @@ function SubscriptionForm() {
       setError('수정할 지출 일정을 찾지 못했습니다.');
     } else {
       setName(data.name);
+      setDescription(data.description || '');
       setPrice(String(data.price));
       setExpenseType(data.expense_type === 'fixed' ? 'fixed' : 'subscription');
       setBillingCycle(data.billing_cycle === 'annual' ? 'annual' : 'monthly');
@@ -103,6 +105,7 @@ function SubscriptionForm() {
 
     const payload = {
       name: name.trim(),
+      description: description.trim() || null,
       price: numericPrice,
       expense_type: expenseType,
       billing_cycle: billingCycle,
@@ -184,6 +187,19 @@ function SubscriptionForm() {
                 />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">원</span>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="description" className="field-label">내용 <span className="font-normal text-slate-400">선택</span></label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="예: 8월 사무실 임대료, 가족 요금제"
+                maxLength={200}
+                rows={3}
+                className="field-input resize-y"
+              />
             </div>
 
             <div>

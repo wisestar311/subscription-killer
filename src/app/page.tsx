@@ -55,7 +55,7 @@ export default function HomePage() {
 
     const subscriptionsResult = await supabase
       .from('subscriptions')
-      .select('id, user_id, name, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
+      .select('id, user_id, name, description, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .order('billing_day');
@@ -257,11 +257,14 @@ export default function HomePage() {
                             href={`/subscriptions/${entry.id}`}
                             className={`calendar-entry ${entry.expense_type === 'fixed' ? 'calendar-entry-fixed' : 'calendar-entry-subscription'}`}
                             title={`${entry.name} · ${formatBilling(entry)} · ${formatWon(entry.price)}${
+                              entry.description ? ` · ${entry.description}` : ''
+                            }${
                               entry.expires_at ? ` · ${entry.expires_at} 만료` : ''
                             }`}
                           >
                             <span className="calendar-entry-name">
-                              {entry.name}{entry.billing_cycle === 'annual' ? ' · 연' : ''}
+                              <span className="block">{entry.name}{entry.billing_cycle === 'annual' ? ' · 연' : ''}</span>
+                              {entry.description && <span className="calendar-entry-description">{entry.description}</span>}
                             </span>
                             <span className="calendar-entry-price">{formatWon(entry.price)}</span>
                           </Link>

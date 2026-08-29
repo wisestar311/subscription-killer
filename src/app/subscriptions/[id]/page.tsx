@@ -112,6 +112,12 @@ export default function SubscriptionDetailPage() {
               <dt>결제 금액</dt>
               <dd className="text-xl font-semibold">{subscription.price.toLocaleString('ko-KR')}원</dd>
             </div>
+            {subscription.description && (
+              <div className="detail-row">
+                <dt>내용</dt>
+                <dd className="max-w-[65%] text-right whitespace-pre-wrap">{subscription.description}</dd>
+              </div>
+            )}
             <div className="detail-row">
               <dt>결제 일정</dt>
               <dd>
