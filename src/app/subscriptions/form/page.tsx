@@ -14,6 +14,7 @@ function SubscriptionForm() {
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [expenseType, setExpenseType] = useState<'subscription' | 'fixed'>('subscription');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [billingMonth, setBillingMonth] = useState('1');
   const [billingDay, setBillingDay] = useState('1');
@@ -27,7 +28,7 @@ function SubscriptionForm() {
     if (!id) return;
     const { data, error: fetchError } = await supabase
       .from('subscriptions')
-      .select('name, price, billing_cycle, billing_month, billing_day, expires_at, cancel_url')
+      .select('name, price, expense_type, billing_cycle, billing_month, billing_day, expires_at, cancel_url')
       .eq('id', id)
       .eq('is_active', true)
       .maybeSingle();
@@ -37,6 +38,7 @@ function SubscriptionForm() {
     } else {
       setName(data.name);
       setPrice(String(data.price));
+      setExpenseType(data.expense_type === 'fixed' ? 'fixed' : 'subscription');
       setBillingCycle(data.billing_cycle === 'annual' ? 'annual' : 'monthly');
       setBillingMonth(String(data.billing_month || 1));
       setBillingDay(String(data.billing_day));
@@ -102,6 +104,7 @@ function SubscriptionForm() {
     const payload = {
       name: name.trim(),
       price: numericPrice,
+      expense_type: expenseType,
       billing_cycle: billingCycle,
       billing_month: billingCycle === 'annual' ? numericBillingMonth : null,
       billing_day: numericBillingDay,
@@ -181,6 +184,20 @@ function SubscriptionForm() {
                 />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">원</span>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="expense-type" className="field-label">지출 유형</label>
+              <select
+                id="expense-type"
+                value={expenseType}
+                onChange={(event) => setExpenseType(event.target.value as 'subscription' | 'fixed')}
+                className="field-input"
+              >
+                <option value="subscription">구독</option>
+                <option value="fixed">고정지출</option>
+              </select>
+              <p className="mt-2 text-xs leading-5 text-slate-400">캘린더에서 구독과 다른 색으로 표시됩니다.</p>
             </div>
 
             <div>

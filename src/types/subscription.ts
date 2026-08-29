@@ -3,6 +3,7 @@ export interface Subscription {
   user_id: string;
   name: string;
   price: number;
+  expense_type: 'subscription' | 'fixed';
   billing_day: number;
   billing_cycle: 'monthly' | 'annual';
   billing_month: number | null;

@@ -57,7 +57,7 @@ export default function HomePage() {
     const [subscriptionsResult, profileResult] = await Promise.all([
       supabase
         .from('subscriptions')
-        .select('*')
+        .select('id, user_id, name, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .order('billing_day'),
@@ -110,6 +110,12 @@ export default function HomePage() {
     (total, subscription) => total + subscription.price,
     0,
   );
+  const subscriptionTotal = scheduledSubscriptions
+    .filter((subscription) => subscription.expense_type !== 'fixed')
+    .reduce((total, subscription) => total + subscription.price, 0);
+  const fixedTotal = scheduledSubscriptions
+    .filter((subscription) => subscription.expense_type === 'fixed')
+    .reduce((total, subscription) => total + subscription.price, 0);
   const currentBalance = profile?.current_balance ?? null;
   const availableAfterSchedule =
     currentBalance === null ? null : currentBalance - minimumExpenditure;
@@ -122,6 +128,23 @@ export default function HomePage() {
     }
     return result;
   }, [scheduledSubscriptions, view]);
+  const dailyTotals = useMemo(() => {
+    const result = new Map<number, number>();
+    for (const [day, entries] of entriesByDay) {
+      result.set(day, entries.reduce((total, entry) => total + entry.price, 0));
+    }
+    return result;
+  }, [entriesByDay]);
+  const balanceByDay = useMemo(() => {
+    const result = new Map<number, number | null>();
+    let scheduledBefore = 0;
+    const daysInMonth = new Date(view.year, view.monthIndex + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      scheduledBefore += dailyTotals.get(day) ?? 0;
+      result.set(day, currentBalance === null ? null : currentBalance - scheduledBefore);
+    }
+    return result;
+  }, [currentBalance, dailyTotals, view]);
 
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
@@ -156,17 +179,29 @@ export default function HomePage() {
           </div>
         )}
 
-        <section className="mb-6 grid gap-3 md:grid-cols-3">
+        <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <article className="summary-card summary-card-dark md:col-span-1">
             <p className="summary-label text-white/60">
-              {view.monthIndex + 1}월 최소 필요 지출
+              {view.monthIndex + 1}월 예상 구독료
             </p>
             <p className="mt-3 text-3xl font-semibold tracking-tight">
-              {formatWon(minimumExpenditure)}
+              {formatWon(subscriptionTotal)}
             </p>
             <p className="mt-5 text-xs text-white/50">
-              이달 결제 예정 지출 {scheduledSubscriptions.length}건 기준
+              구독 {scheduledSubscriptions.filter((entry) => entry.expense_type !== 'fixed').length}건
             </p>
+          </article>
+
+          <article className="summary-card border-amber-100 bg-amber-50/60">
+            <p className="summary-label text-amber-700">{view.monthIndex + 1}월 고정지출</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">{formatWon(fixedTotal)}</p>
+            <p className="mt-5 text-xs text-amber-700/70">고정지출 {scheduledSubscriptions.filter((entry) => entry.expense_type === 'fixed').length}건</p>
+          </article>
+
+          <article className="summary-card border-blue-100 bg-blue-50/60">
+            <p className="summary-label text-blue-700">{view.monthIndex + 1}월 전체 예정지출</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-blue-950">{formatWon(minimumExpenditure)}</p>
+            <p className="mt-5 text-xs text-blue-700/70">최소 필요 지출 합계</p>
           </article>
 
           <article className="summary-card">
@@ -231,6 +266,12 @@ export default function HomePage() {
             </button>
           </div>
 
+          <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-blue-500" />구독</span>
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber-500" />고정지출</span>
+            <span>각 날짜: 지출 합계 · 예정 잔고</span>
+          </div>
+
           <div className="calendar-grid border-b border-slate-200 bg-slate-50/70">
             {WEEKDAYS.map((weekday, index) => (
               <div
@@ -263,12 +304,18 @@ export default function HomePage() {
                       <div className={`calendar-day ${isToday ? 'calendar-day-today' : ''}`}>
                         {day}
                       </div>
+                      <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
+                        <div>지출 {formatWon(dailyTotals.get(day) ?? 0)}</div>
+                        <div className={balanceByDay.get(day) !== null && (balanceByDay.get(day) ?? 0) < 0 ? 'text-rose-600' : 'text-emerald-600'}>
+                          잔고 {balanceByDay.get(day) === null ? '—' : formatWon(balanceByDay.get(day) ?? 0)}
+                        </div>
+                      </div>
                       <div className="mt-2 space-y-1.5">
                         {dayEntries.map((entry) => (
                           <Link
                             key={entry.id}
                             href={`/subscriptions/${entry.id}`}
-                            className="calendar-entry"
+                            className={`calendar-entry ${entry.expense_type === 'fixed' ? 'calendar-entry-fixed' : ''}`}
                             title={`${entry.name} · ${formatBilling(entry)} · ${formatWon(entry.price)}${
                               entry.expires_at ? ` · ${entry.expires_at} 만료` : ''
                             }`}

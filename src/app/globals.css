@@ -167,6 +167,16 @@ a {
   transform: translateY(-1px);
 }
 
+.calendar-entry-fixed {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.calendar-entry-fixed:hover {
+  background: #fef3c7;
+}
+
 .calendar-entry-name {
   overflow: hidden;
   text-overflow: ellipsis;
