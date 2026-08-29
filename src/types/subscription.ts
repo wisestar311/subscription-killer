@@ -3,6 +3,8 @@ export interface Subscription {
   user_id: string;
   name: string;
   description: string | null;
+  schedule_type: 'recurring' | 'one_time';
+  scheduled_date: string | null;
   price: number;
   expense_type: 'subscription' | 'fixed';
   billing_day: number;

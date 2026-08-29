@@ -57,7 +57,7 @@ export default function HomePage() {
     const [subscriptionsResult, profileResult] = await Promise.all([
       supabase
         .from('subscriptions')
-        .select('id, user_id, name, description, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
+      .select('id, user_id, name, description, price, expense_type, schedule_type, scheduled_date, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .order('billing_day'),
@@ -91,6 +91,11 @@ export default function HomePage() {
     () =>
       subscriptions.filter((subscription) => {
         if (
+          subscription.schedule_type === 'one_time'
+        ) {
+          return subscription.scheduled_date?.slice(0, 7) === getMonthKey(view.year, view.monthIndex);
+        }
+        if (
           subscription.billing_cycle === 'annual' &&
           subscription.billing_month !== view.monthIndex + 1
         ) {
@@ -121,7 +126,9 @@ export default function HomePage() {
   const entriesByDay = useMemo(() => {
     const result = new Map<number, Subscription[]>();
     for (const subscription of scheduledSubscriptions) {
-      const day = getScheduledDay(view.year, view.monthIndex, subscription.billing_day);
+      const day = subscription.schedule_type === 'one_time' && subscription.scheduled_date
+        ? Number(subscription.scheduled_date.slice(8, 10))
+        : getScheduledDay(view.year, view.monthIndex, subscription.billing_day);
       result.set(day, [...(result.get(day) ?? []), subscription]);
     }
     return result;
@@ -286,6 +293,9 @@ export default function HomePage() {
                       <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
                         <div>지출 {formatWon(dailyTotals.get(day) ?? 0)}</div>
                       </div>
+                      <Link href={`/subscriptions/form?date=${monthKey}-${String(day).padStart(2, '0')}`} className="mt-1 block text-[10px] font-semibold text-slate-400 hover:text-slate-700">
+                        + 이 날짜에 추가
+                      </Link>
                       <div className="mt-2 space-y-1.5">
                         {dayEntries.map((entry) => (
                           <Link

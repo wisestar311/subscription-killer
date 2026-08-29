@@ -10,10 +10,13 @@ function SubscriptionForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
+  const presetDate = searchParams.get('date') || '';
   const supabase = useMemo(() => createClient(), []);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [scheduleType, setScheduleType] = useState<'recurring' | 'one_time'>(presetDate ? 'one_time' : 'recurring');
+  const [scheduledDate, setScheduledDate] = useState(presetDate);
   const [price, setPrice] = useState('');
   const [expenseType, setExpenseType] = useState<'subscription' | 'fixed'>('subscription');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
@@ -29,7 +32,7 @@ function SubscriptionForm() {
     if (!id) return;
     const { data, error: fetchError } = await supabase
       .from('subscriptions')
-      .select('name, description, price, expense_type, billing_cycle, billing_month, billing_day, expires_at, cancel_url')
+      .select('name, description, price, expense_type, schedule_type, scheduled_date, billing_cycle, billing_month, billing_day, expires_at, cancel_url')
       .eq('id', id)
       .eq('is_active', true)
       .maybeSingle();
@@ -39,6 +42,8 @@ function SubscriptionForm() {
     } else {
       setName(data.name);
       setDescription(data.description || '');
+      setScheduleType(data.schedule_type === 'one_time' ? 'one_time' : 'recurring');
+      setScheduledDate(data.scheduled_date || '');
       setPrice(String(data.price));
       setExpenseType(data.expense_type === 'fixed' ? 'fixed' : 'subscription');
       setBillingCycle(data.billing_cycle === 'annual' ? 'annual' : 'monthly');
@@ -77,6 +82,11 @@ function SubscriptionForm() {
       setLoading(false);
       return;
     }
+    if (scheduleType === 'one_time' && !/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
+      setError('일회성 지출 날짜를 선택해주세요.');
+      setLoading(false);
+      return;
+    }
     if (
       billingCycle === 'annual' &&
       (!Number.isInteger(numericBillingMonth) || numericBillingMonth < 1 || numericBillingMonth > 12)
@@ -106,6 +116,8 @@ function SubscriptionForm() {
     const payload = {
       name: name.trim(),
       description: description.trim() || null,
+      schedule_type: scheduleType,
+      scheduled_date: scheduleType === 'one_time' ? scheduledDate : null,
       price: numericPrice,
       expense_type: expenseType,
       billing_cycle: billingCycle,
@@ -215,6 +227,26 @@ function SubscriptionForm() {
               </select>
               <p className="mt-2 text-xs leading-5 text-slate-400">캘린더에서 구독과 다른 색으로 표시됩니다.</p>
             </div>
+
+            <div>
+              <label htmlFor="schedule-type" className="field-label">발생 방식</label>
+              <select
+                id="schedule-type"
+                value={scheduleType}
+                onChange={(event) => setScheduleType(event.target.value as 'recurring' | 'one_time')}
+                className="field-input"
+              >
+                <option value="recurring">매월 반복</option>
+                <option value="one_time">특정 날짜 1회</option>
+              </select>
+            </div>
+
+            {scheduleType === 'one_time' && (
+              <div>
+                <label htmlFor="scheduled-date" className="field-label">발생 날짜</label>
+                <input id="scheduled-date" type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} className="field-input" required />
+              </div>
+            )}
 
             <div>
               <label htmlFor="billing-cycle" className="field-label">결제 주기</label>
