@@ -13,7 +13,7 @@ import {
   moveMonth,
   parseIsoDate,
 } from '@/lib/schedule';
-import type { Subscription } from '@/types/subscription';
+import type { Profile, Subscription } from '@/types/subscription';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -37,6 +37,7 @@ export default function HomePage() {
     monthIndex: todayParts.monthIndex,
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -53,18 +54,26 @@ export default function HomePage() {
       return;
     }
 
-    const subscriptionsResult = await supabase
-      .from('subscriptions')
-      .select('id, user_id, name, description, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .order('billing_day');
+    const [subscriptionsResult, profileResult] = await Promise.all([
+      supabase
+        .from('subscriptions')
+        .select('id, user_id, name, description, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('billing_day'),
+      supabase
+        .from('profiles')
+        .select('id, telegram_chat_id, current_balance, balance_updated_at, balance_source')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
 
     if (subscriptionsResult.error) {
       setError('지출 일정을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } else {
       setSubscriptions((subscriptionsResult.data || []) as Subscription[]);
     }
+    if (!profileResult.error) setProfile(profileResult.data as Profile | null);
 
     setLoading(false);
   }, [router, supabase]);
@@ -107,6 +116,7 @@ export default function HomePage() {
   const fixedTotal = scheduledSubscriptions
     .filter((subscription) => subscription.expense_type === 'fixed')
     .reduce((total, subscription) => total + subscription.price, 0);
+  const currentBalance = profile?.current_balance ?? null;
 
   const entriesByDay = useMemo(() => {
     const result = new Map<number, Subscription[]>();
@@ -116,13 +126,21 @@ export default function HomePage() {
     }
     return result;
   }, [scheduledSubscriptions, view]);
-  const dailyTotals = useMemo(() => {
-    const result = new Map<number, number>();
+  const fixedEntriesByDay = useMemo(() => {
+    const result = new Map<number, Subscription[]>();
     for (const [day, entries] of entriesByDay) {
-      result.set(day, entries.reduce((total, entry) => total + entry.price, 0));
+      const fixedEntries = entries.filter((entry) => entry.expense_type === 'fixed');
+      if (fixedEntries.length > 0) result.set(day, fixedEntries);
     }
     return result;
   }, [entriesByDay]);
+  const dailyTotals = useMemo(() => {
+    const result = new Map<number, number>();
+    for (const [day, entries] of fixedEntriesByDay) {
+      result.set(day, entries.reduce((total, entry) => total + entry.price, 0));
+    }
+    return result;
+  }, [fixedEntriesByDay]);
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
   }
@@ -199,20 +217,30 @@ export default function HomePage() {
                 →
               </button>
             </div>
-            <button
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">현재 잔액</p>
+                <p className="mt-0.5 text-sm font-bold text-slate-950">
+                  {currentBalance === null ? '연동 필요' : formatWon(currentBalance)}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  {profile?.balance_updated_at ? '메시지 연동됨' : 'iPhone 메시지 연동 필요'}
+                </p>
+              </div>
+              <button
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 onClick={() =>
                   setView({ year: todayParts.year, monthIndex: todayParts.monthIndex })
                 }
               >
                 이번 달
-            </button>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
-            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독료</span>
             <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" />고정지출</span>
-            <span>각 날짜: 지출 합계</span>
+            <span>각 날짜: 고정지출 합계</span>
           </div>
 
           <div className="calendar-grid border-b border-slate-200 bg-slate-50/70">
@@ -234,7 +262,7 @@ export default function HomePage() {
 
           <div className="calendar-grid">
             {calendarCells.map((day, index) => {
-              const dayEntries = day ? entriesByDay.get(day) ?? [] : [];
+              const dayEntries = day ? fixedEntriesByDay.get(day) ?? [] : [];
               const isToday =
                 day !== null && `${monthKey}-${String(day).padStart(2, '0')}` === today;
               return (
