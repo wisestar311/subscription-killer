@@ -8,6 +8,7 @@ import {
   parseIsoDate,
 } from '@/lib/schedule';
 import { sendTelegramMessage } from '@/lib/telegram';
+import { getSupabaseUrl } from '@/lib/supabase/url';
 
 type NotificationChannel = 'email' | 'telegram';
 
@@ -25,7 +26,7 @@ type NotificationSubscription = {
 };
 
 function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Supabase 관리자 환경 변수가 없습니다.');
   return createClient(url, key);
