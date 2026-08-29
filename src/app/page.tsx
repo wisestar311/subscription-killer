@@ -133,21 +133,13 @@ export default function HomePage() {
     }
     return result;
   }, [scheduledSubscriptions, view]);
-  const fixedEntriesByDay = useMemo(() => {
-    const result = new Map<number, Subscription[]>();
-    for (const [day, entries] of entriesByDay) {
-      const fixedEntries = entries.filter((entry) => entry.expense_type === 'fixed');
-      if (fixedEntries.length > 0) result.set(day, fixedEntries);
-    }
-    return result;
-  }, [entriesByDay]);
   const dailyTotals = useMemo(() => {
     const result = new Map<number, number>();
-    for (const [day, entries] of fixedEntriesByDay) {
+    for (const [day, entries] of entriesByDay) {
       result.set(day, entries.reduce((total, entry) => total + entry.price, 0));
     }
     return result;
-  }, [fixedEntriesByDay]);
+  }, [entriesByDay]);
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
   }
@@ -247,7 +239,8 @@ export default function HomePage() {
 
           <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
             <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" />고정지출</span>
-            <span>각 날짜: 고정지출 합계</span>
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독료</span>
+            <span>각 날짜: 전체 지출 합계</span>
           </div>
 
           <div className="calendar-grid border-b border-slate-200 bg-slate-50/70">
@@ -269,7 +262,7 @@ export default function HomePage() {
 
           <div className="calendar-grid">
             {calendarCells.map((day, index) => {
-              const dayEntries = day ? fixedEntriesByDay.get(day) ?? [] : [];
+              const dayEntries = day ? entriesByDay.get(day) ?? [] : [];
               const isToday =
                 day !== null && `${monthKey}-${String(day).padStart(2, '0')}` === today;
               return (
