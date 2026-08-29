@@ -141,6 +141,7 @@ export default function SettingsPage() {
   const shortcutBody = importToken
     ? JSON.stringify({ token: importToken, message: '단축어 입력' }, null, 2)
     : '';
+  const authorizationHeader = importToken ? `Bearer ${importToken}` : '';
 
   return (
     <main className="app-shell min-h-screen px-4 py-8 sm:py-12">
@@ -215,7 +216,21 @@ export default function SettingsPage() {
               </div>
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-600">2. POST JSON 본문</span>
+                  <span className="text-xs font-semibold text-slate-600">2. Authorization 헤더</span>
+                  <button
+                    className="text-xs font-semibold text-blue-600"
+                    onClick={() => copyText(authorizationHeader, 'Authorization 헤더')}
+                  >
+                    복사
+                  </button>
+                </div>
+                <code className="block overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">
+                  {authorizationHeader}
+                </code>
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">기존 방식: POST JSON 본문</span>
                   <button
                     className="text-xs font-semibold text-blue-600"
                     onClick={() => copyText(shortcutBody, 'JSON 본문')}
@@ -230,7 +245,8 @@ export default function SettingsPage() {
               <ol className="list-decimal space-y-1 pl-5 text-xs leading-5 text-slate-500">
                 <li>단축어 앱 → 자동화 → 메시지를 받을 때를 선택합니다.</li>
                 <li>은행 발신자를 지정하고 “URL 콘텐츠 가져오기” 동작을 추가합니다.</li>
-                <li>메서드는 POST, 본문은 JSON으로 설정하고 message 값에 단축어 입력을 넣습니다.</li>
+                <li>메서드는 POST, Authorization 헤더에는 위 값을 입력합니다.</li>
+                <li>요청 본문은 파일로 선택하고 값에는 단축어 입력을 지정합니다.</li>
               </ol>
               <p className="text-xs font-medium text-amber-700">
                 토큰 원문은 다시 표시되지 않습니다. 노출되면 즉시 새 토큰을 만드세요.

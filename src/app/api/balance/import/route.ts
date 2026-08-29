@@ -1,12 +1,10 @@
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { normalizeBalance, parseBalanceFromMessage } from '@/lib/balance';
-
-type ImportBody = {
-  token?: unknown;
-  balance?: unknown;
-  message?: unknown;
-};
+import {
+  normalizeBalance,
+  parseBalanceFromMessage,
+  parseBalanceImportPayload,
+} from '@/lib/balance';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,12 +14,18 @@ function getAdminClient() {
 }
 
 export async function POST(request: Request) {
-  let body: ImportBody;
-  try {
-    body = (await request.json()) as ImportBody;
-  } catch {
-    return Response.json({ error: 'JSON 요청이 필요합니다.' }, { status: 400 });
+  const contentLength = Number(request.headers.get('content-length') ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > 10_000) {
+    return Response.json({ error: '요청 본문이 너무 큽니다.' }, { status: 413 });
   }
+
+  const rawBody = await request.text();
+  if (rawBody.length > 10_000) {
+    return Response.json({ error: '요청 본문이 너무 큽니다.' }, { status: 413 });
+  }
+
+  const body = parseBalanceImportPayload(rawBody, request.headers.get('content-type'));
+  if (!body) return Response.json({ error: '유효한 요청 본문이 필요합니다.' }, { status: 400 });
 
   const authToken = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   const token = typeof body.token === 'string' ? body.token : authToken;
