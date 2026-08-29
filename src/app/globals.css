@@ -134,13 +134,21 @@ a {
 
 .calendar-day {
   display: grid;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 2rem;
+  height: 2rem;
   place-items: center;
   border-radius: 999px;
   color: #64748b;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.calendar-day-sunday {
+  color: #ef4444;
+}
+
+.calendar-day-saturday {
+  color: #3b82f6;
 }
 
 .calendar-day-today {

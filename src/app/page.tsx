@@ -219,7 +219,7 @@ export default function HomePage() {
             {WEEKDAYS.map((weekday, index) => (
               <div
                 key={weekday}
-                className={`py-2 text-center text-[11px] font-semibold ${
+                className={`py-2 text-center text-xs font-bold ${
                   index === 0
                     ? 'text-rose-500'
                     : index === 6
@@ -244,7 +244,15 @@ export default function HomePage() {
                 >
                   {day !== null && (
                     <>
-                      <div className={`calendar-day ${isToday ? 'calendar-day-today' : ''}`}>
+                      <div
+                        className={`calendar-day ${
+                          index % 7 === 0
+                            ? 'calendar-day-sunday'
+                            : index % 7 === 6
+                              ? 'calendar-day-saturday'
+                              : ''
+                        } ${isToday ? 'calendar-day-today' : ''}`}
+                      >
                         {day}
                       </div>
                       <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
