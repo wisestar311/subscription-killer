@@ -140,6 +140,16 @@ export default function HomePage() {
     }
     return result;
   }, [entriesByDay]);
+  const balanceByDay = useMemo(() => {
+    const result = new Map<number, number | null>();
+    let scheduledBefore = 0;
+    const daysInMonth = new Date(view.year, view.monthIndex + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      scheduledBefore += dailyTotals.get(day) ?? 0;
+      result.set(day, currentBalance === null ? null : currentBalance - scheduledBefore);
+    }
+    return result;
+  }, [currentBalance, dailyTotals, view]);
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
   }
@@ -238,7 +248,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
-            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" />고정지출</span>
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-emerald-500" />고정지출</span>
             <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독료</span>
             <span>각 날짜: 전체 지출 합계</span>
           </div>
@@ -285,9 +295,12 @@ export default function HomePage() {
                       </div>
                       <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
                         <div>지출 {formatWon(dailyTotals.get(day) ?? 0)}</div>
+                        <div className="text-blue-600">
+                          잔액 {balanceByDay.get(day) === null ? '—' : formatWon(balanceByDay.get(day) ?? 0)}
+                        </div>
                       </div>
-                      <Link href={`/subscriptions/form?date=${monthKey}-${String(day).padStart(2, '0')}`} className="mt-1 block text-[10px] font-semibold text-slate-400 hover:text-slate-700">
-                        + 이 날짜에 추가
+                      <Link href={`/subscriptions/form?date=${monthKey}-${String(day).padStart(2, '0')}`} className="mt-1 block text-sm font-bold leading-none text-slate-400 hover:text-slate-700" aria-label={`${day}일 지출 추가`}>
+                        +
                       </Link>
                       <div className="mt-2 space-y-1.5">
                         {dayEntries.map((entry) => (
