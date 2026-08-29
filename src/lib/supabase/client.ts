@@ -6,7 +6,7 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookieOptions: {
-        lifetime: 60 * 60 * 24 * 7, // 7일
+        maxAge: 60 * 60 * 24 * 7, // 7일
         path: '/',
         sameSite: 'lax',
       },

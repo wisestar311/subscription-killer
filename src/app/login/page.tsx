@@ -1,20 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const searchParams = useSearchParams();
 
   // 예전에 입력한 이메일 불러오기
   useEffect(() => {
     const saved = localStorage.getItem('saved_email');
     if (saved) setEmail(saved);
-  }, []);
+    const loginError = searchParams.get('error');
+    if (loginError) setMessage(loginError);
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,10 +26,10 @@ export default function LoginPage() {
     setMessage('');
 
     // 이메일 저장
-    localStorage.setItem('saved_email', email);
+    localStorage.setItem('saved_email', email.trim());
 
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: email.trim(),
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
@@ -41,39 +45,50 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-center mb-2">구독 킬러</h1>
-        <p className="text-sm text-gray-500 text-center mb-6">
-          안 쓰는 구독을 정리하고 돈을 아끼세요
+    <main className="app-shell flex min-h-screen items-center justify-center p-4">
+      <div className="form-card w-full max-w-sm">
+        <p className="eyebrow text-center">EXPENDITURE CONTROL</p>
+        <h1 className="mb-2 mt-2 text-center text-2xl font-semibold">구독 킬러</h1>
+        <p className="mb-7 text-center text-sm leading-6 text-slate-500">
+          지출 일정과 잔액을 한눈에 관리하세요
         </p>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">이메일</label>
+            <label htmlFor="email" className="field-label">이메일</label>
             <input
+              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
               required
-              className="w-full border rounded-lg px-3 py-2.5"
+              autoComplete="email"
+              className="field-input"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white py-3 rounded-lg font-medium"
+            className="primary-button w-full"
           >
             {loading ? '발송 중...' : '로그인 링크 받기'}
           </button>
         </form>
 
         {message && (
-          <p className="mt-4 text-sm text-center text-gray-600">{message}</p>
+          <p className="mt-4 text-center text-sm text-slate-600">{message}</p>
         )}
       </div>
-    </div>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="app-shell min-h-screen" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

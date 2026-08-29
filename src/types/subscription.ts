@@ -1,5 +1,6 @@
 export interface Subscription {
   id: string;
+  user_id: string;
   name: string;
   price: number;
   billing_day: number;
@@ -10,4 +11,13 @@ export interface Subscription {
   is_active: boolean;
   last_used_month: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+export interface Profile {
+  id: string;
+  telegram_chat_id: string | null;
+  current_balance: number | null;
+  balance_updated_at: string | null;
+  balance_source: string | null;
 }

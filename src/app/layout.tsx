@@ -1,9 +1,15 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '구독 킬러',
-  description: '안 쓰는 구독을 정리하고 돈을 아끼세요',
+  title: '구독 킬러 · 지출 캘린더',
+  description: '고정 지출 일정과 현재 잔액을 한눈에 관리하세요',
+  manifest: '/manifest.json',
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#f5f7fb',
 };
 
 export default function RootLayout({
