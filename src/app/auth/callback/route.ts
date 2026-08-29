@@ -13,6 +13,6 @@ export async function GET(request: Request) {
   }
 
   const loginUrl = new URL('/login', url.origin);
-  loginUrl.searchParams.set('error', '인증 링크가 만료되었거나 유효하지 않습니다.');
+  loginUrl.searchParams.set('error', 'Google 인증에 실패했거나 요청이 만료되었습니다.');
   return NextResponse.redirect(loginUrl);
 }

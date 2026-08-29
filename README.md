@@ -4,7 +4,7 @@
 
 ## 주요 기능
 
-- 이메일 매직 링크 로그인
+- Google OAuth 로그인
 - 월간 지출 캘린더와 월말 결제일 자동 보정
 - 지출별 전용 상세·수정 화면
 - 이번 달 최소 필요 지출, 현재 잔액, 예정 지출 후 잔액 표시
@@ -50,7 +50,7 @@ Supabase SQL Editor에서 아래 파일을 순서대로 실행합니다.
 
 두 번째 migration은 현재 잔액 필드와 알림 발송 이력, 동시·중복 발송을 막는 claim 함수를 추가합니다. 세 번째 migration은 월간·연간 결제 주기와 구독 만료일을 추가합니다. 기존 `subscriptions`와 `profiles` 데이터는 유지됩니다.
 
-Supabase Authentication의 URL Configuration에는 로컬 및 배포 주소의 `/auth/callback`을 Redirect URL로 등록합니다.
+Supabase Authentication의 URL Configuration에는 로컬 및 배포 주소의 `/auth/callback`을 Redirect URL로 등록합니다. Google Cloud OAuth 클라이언트의 승인된 리디렉션 URI에는 Supabase가 표시하는 `https://<project-ref>.supabase.co/auth/v1/callback`을 등록하고, 같은 Client ID와 Client Secret으로 Google provider를 활성화합니다.
 
 ## iPhone 메시지 잔액 연동
 
