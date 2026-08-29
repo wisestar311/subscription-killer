@@ -168,13 +168,23 @@ a {
 }
 
 .calendar-entry-fixed {
-  border-left-color: #f59e0b;
-  background: #fffbeb;
-  color: #92400e;
+  border-left-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .calendar-entry-fixed:hover {
-  background: #fef3c7;
+  background: #fee2e2;
+}
+
+.calendar-entry-subscription {
+  border-left-color: #f97316;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.calendar-entry-subscription:hover {
+  background: #ffedd5;
 }
 
 .calendar-entry-name {

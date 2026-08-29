@@ -13,7 +13,7 @@ import {
   moveMonth,
   parseIsoDate,
 } from '@/lib/schedule';
-import type { Profile, Subscription } from '@/types/subscription';
+import type { Subscription } from '@/types/subscription';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -37,7 +37,6 @@ export default function HomePage() {
     monthIndex: todayParts.monthIndex,
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -54,19 +53,12 @@ export default function HomePage() {
       return;
     }
 
-    const [subscriptionsResult, profileResult] = await Promise.all([
-      supabase
-        .from('subscriptions')
-        .select('id, user_id, name, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('billing_day'),
-      supabase
-        .from('profiles')
-        .select('id, telegram_chat_id, current_balance, balance_updated_at, balance_source')
-        .eq('id', user.id)
-        .maybeSingle(),
-    ]);
+    const subscriptionsResult = await supabase
+      .from('subscriptions')
+      .select('id, user_id, name, price, expense_type, billing_day, billing_cycle, billing_month, expires_at, cancel_url, is_active, last_used_month, created_at, updated_at')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('billing_day');
 
     if (subscriptionsResult.error) {
       setError('지출 일정을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -74,7 +66,6 @@ export default function HomePage() {
       setSubscriptions((subscriptionsResult.data || []) as Subscription[]);
     }
 
-    if (!profileResult.error) setProfile(profileResult.data as Profile | null);
     setLoading(false);
   }, [router, supabase]);
 
@@ -116,9 +107,6 @@ export default function HomePage() {
   const fixedTotal = scheduledSubscriptions
     .filter((subscription) => subscription.expense_type === 'fixed')
     .reduce((total, subscription) => total + subscription.price, 0);
-  const currentBalance = profile?.current_balance ?? null;
-  const availableAfterSchedule =
-    currentBalance === null ? null : currentBalance - minimumExpenditure;
 
   const entriesByDay = useMemo(() => {
     const result = new Map<number, Subscription[]>();
@@ -135,17 +123,6 @@ export default function HomePage() {
     }
     return result;
   }, [entriesByDay]);
-  const balanceByDay = useMemo(() => {
-    const result = new Map<number, number | null>();
-    let scheduledBefore = 0;
-    const daysInMonth = new Date(view.year, view.monthIndex + 1, 0).getDate();
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      scheduledBefore += dailyTotals.get(day) ?? 0;
-      result.set(day, currentBalance === null ? null : currentBalance - scheduledBefore);
-    }
-    return result;
-  }, [currentBalance, dailyTotals, view]);
-
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
   }
@@ -179,7 +156,7 @@ export default function HomePage() {
           </div>
         )}
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <article className="summary-card summary-card-dark md:col-span-1">
             <p className="summary-label text-white/60">
               {view.monthIndex + 1}월 예상 구독료
@@ -193,7 +170,7 @@ export default function HomePage() {
           </article>
 
           <article className="summary-card border-amber-100 bg-amber-50/60">
-            <p className="summary-label text-amber-700">{view.monthIndex + 1}월 고정지출</p>
+            <p className="summary-label text-amber-700">{view.monthIndex + 1}월 예상 고정지출</p>
             <p className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">{formatWon(fixedTotal)}</p>
             <p className="mt-5 text-xs text-amber-700/70">고정지출 {scheduledSubscriptions.filter((entry) => entry.expense_type === 'fixed').length}건</p>
           </article>
@@ -204,23 +181,6 @@ export default function HomePage() {
             <p className="mt-5 text-xs text-blue-700/70">최소 필요 지출 합계</p>
           </article>
 
-          <article className="summary-card">
-            <p className="summary-label">예정 지출 후 잔액</p>
-            <p
-              className={`mt-3 text-3xl font-semibold tracking-tight ${
-                availableAfterSchedule !== null && availableAfterSchedule < 0
-                  ? 'text-rose-600'
-                  : 'text-slate-950'
-              }`}
-            >
-              {availableAfterSchedule === null ? '—' : formatWon(availableAfterSchedule)}
-            </p>
-            <p className="mt-5 text-xs text-slate-400">
-              {availableAfterSchedule !== null && availableAfterSchedule < 0
-                ? `${formatWon(Math.abs(availableAfterSchedule))} 부족합니다`
-                : '현재 잔액에서 최소 필요 지출을 제외한 금액'}
-            </p>
-          </article>
         </section>
 
         <section
@@ -239,36 +199,20 @@ export default function HomePage() {
                 →
               </button>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-sm">
-                <div className="flex items-center justify-end gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  현재 잔액
-                  <span className={`status-dot ${currentBalance === null ? 'status-dot-muted' : ''}`} />
-                </div>
-                <p className="mt-0.5 text-sm font-bold text-slate-950">
-                  {currentBalance === null ? '연동 필요' : formatWon(currentBalance)}
-                </p>
-                <p className="text-[10px] text-slate-400">
-                  {profile?.balance_updated_at
-                    ? `${new Date(profile.balance_updated_at).toLocaleString('ko-KR')} 업데이트`
-                    : 'iPhone 메시지 연동 필요'}
-                </p>
-              </div>
-              <button
+            <button
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 onClick={() =>
                   setView({ year: todayParts.year, monthIndex: todayParts.monthIndex })
                 }
               >
                 이번 달
-              </button>
-            </div>
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
-            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-blue-500" />구독</span>
-            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber-500" />고정지출</span>
-            <span>각 날짜: 지출 합계 · 예정 잔고</span>
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독료</span>
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" />고정지출</span>
+            <span>각 날짜: 지출 합계</span>
           </div>
 
           <div className="calendar-grid border-b border-slate-200 bg-slate-50/70">
@@ -305,16 +249,13 @@ export default function HomePage() {
                       </div>
                       <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
                         <div>지출 {formatWon(dailyTotals.get(day) ?? 0)}</div>
-                        <div className={balanceByDay.get(day) !== null && (balanceByDay.get(day) ?? 0) < 0 ? 'text-rose-600' : 'text-emerald-600'}>
-                          잔고 {balanceByDay.get(day) === null ? '—' : formatWon(balanceByDay.get(day) ?? 0)}
-                        </div>
                       </div>
                       <div className="mt-2 space-y-1.5">
                         {dayEntries.map((entry) => (
                           <Link
                             key={entry.id}
                             href={`/subscriptions/${entry.id}`}
-                            className={`calendar-entry ${entry.expense_type === 'fixed' ? 'calendar-entry-fixed' : ''}`}
+                            className={`calendar-entry ${entry.expense_type === 'fixed' ? 'calendar-entry-fixed' : 'calendar-entry-subscription'}`}
                             title={`${entry.name} · ${formatBilling(entry)} · ${formatWon(entry.price)}${
                               entry.expires_at ? ` · ${entry.expires_at} 만료` : ''
                             }`}
