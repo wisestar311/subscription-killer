@@ -337,47 +337,71 @@ a {
   background: #fff8fa;
 }
 
-.spreadsheet-section-heading th {
-  border-top: 3px solid var(--surface);
-  padding: 0.9rem 1rem;
+.spreadsheet-date-heading th,
+.spreadsheet-date-heading td {
+  border-top: 4px solid var(--surface);
+  background: #fffafb;
+  padding-block: 1rem;
 }
 
-.spreadsheet-section-heading th > span:first-child {
+.spreadsheet-date-heading th > span:first-child {
   color: var(--ink);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 700;
 }
 
-.spreadsheet-section-heading th > span:last-child {
+.spreadsheet-date-heading th > span:first-child small {
+  margin-left: 0.5rem;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.spreadsheet-date-heading th > span:last-child {
   float: right;
+  color: var(--body);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
-.spreadsheet-section-heading-subscription th {
-  background: #fff7ed;
-  color: #9a3412;
+.spreadsheet-date-balance {
+  color: #2563eb;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right !important;
 }
 
-.spreadsheet-section-heading-fixed th {
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.spreadsheet-group + .spreadsheet-group tr:first-child > * {
-  border-top: 2px solid var(--line);
-}
-
-.spreadsheet-group-subtotal th,
-.spreadsheet-group-subtotal td {
-  background: var(--surface-soft);
+.spreadsheet-date-balance small {
+  display: block;
+  margin-bottom: 0.2rem;
   color: var(--muted);
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+
+.spreadsheet-category-heading th {
+  padding-block: 0.6rem;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
-.spreadsheet-group-subtotal th {
-  text-align: right;
+.spreadsheet-category-heading th > span:last-child {
+  float: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.spreadsheet-category-heading-subscription th {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.spreadsheet-category-heading-fixed th {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.spreadsheet-group-indent {
+  background: var(--surface-soft);
 }
 
 .spreadsheet-table tfoot th,
@@ -395,23 +419,6 @@ a {
 .spreadsheet-number {
   text-align: right !important;
   font-variant-numeric: tabular-nums;
-}
-
-.spreadsheet-date {
-  min-width: 8.5rem;
-  background: #fffafb;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  vertical-align: top !important;
-}
-
-.spreadsheet-date-count {
-  display: block;
-  margin-top: 0.35rem;
-  color: var(--muted);
-  font-size: 0.6875rem;
-  font-weight: 500;
 }
 
 .spreadsheet-name {
