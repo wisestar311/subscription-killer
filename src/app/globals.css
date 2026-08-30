@@ -265,6 +265,155 @@ a {
   background: var(--surface-soft);
 }
 
+.view-switcher {
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  padding: 3px;
+}
+
+.view-switcher-button {
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.view-switcher-button:hover {
+  color: var(--ink);
+}
+
+.view-switcher-button-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.spreadsheet-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.spreadsheet-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  color: var(--body);
+  font-size: 0.8125rem;
+}
+
+.spreadsheet-table th,
+.spreadsheet-table td {
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 0.85rem 1rem;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.spreadsheet-table th:last-child,
+.spreadsheet-table td:last-child {
+  border-right: 0;
+}
+
+.spreadsheet-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.spreadsheet-table tbody tr:hover {
+  background: #fff8fa;
+}
+
+.spreadsheet-table tfoot th,
+.spreadsheet-table tfoot td {
+  border-bottom: 0;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.spreadsheet-table tfoot th {
+  text-align: right;
+}
+
+.spreadsheet-number {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.spreadsheet-date {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.spreadsheet-name {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.spreadsheet-description {
+  max-width: 16rem;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+}
+
+.spreadsheet-price {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.spreadsheet-balance {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.expense-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.expense-badge-fixed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.expense-badge-subscription {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.spreadsheet-detail-link {
+  color: var(--primary-active);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.spreadsheet-empty {
+  height: 12rem;
+  color: var(--muted);
+  text-align: center !important;
+}
+
 .floating-add {
   position: fixed;
   right: 1.5rem;

@@ -16,6 +16,7 @@ import {
 import type { Profile, Subscription } from '@/types/subscription';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+type ViewMode = 'calendar' | 'spreadsheet';
 
 function formatWon(value: number) {
   return `${value.toLocaleString('ko-KR')}원`;
@@ -38,6 +39,7 @@ export default function HomePage() {
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -150,6 +152,24 @@ export default function HomePage() {
     }
     return result;
   }, [currentBalance, dailyTotals, view]);
+  const spreadsheetEntries = useMemo(
+    () =>
+      scheduledSubscriptions
+        .map((entry) => {
+          const day = entry.schedule_type === 'one_time' && entry.scheduled_date
+            ? Number(entry.scheduled_date.slice(8, 10))
+            : getScheduledDay(view.year, view.monthIndex, entry.billing_day);
+
+          return {
+            entry,
+            day,
+            scheduledDate: `${monthKey}-${String(day).padStart(2, '0')}`,
+            projectedBalance: balanceByDay.get(day) ?? null,
+          };
+        })
+        .sort((a, b) => a.day - b.day || a.entry.name.localeCompare(b.entry.name, 'ko')),
+    [balanceByDay, monthKey, scheduledSubscriptions, view],
+  );
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
   }
@@ -169,7 +189,7 @@ export default function HomePage() {
           <div>
             <p className="eyebrow">EXPENDITURE CONTROL</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-              지출 캘린더
+              지출 일정
             </h1>
           </div>
           <Link className="icon-link" href="/settings" aria-label="설정 열기">
@@ -212,7 +232,7 @@ export default function HomePage() {
 
         <section
           className="calendar-panel"
-          aria-label={`${view.year}년 ${view.monthIndex + 1}월 지출 일정`}
+          aria-label={`${view.year}년 ${view.monthIndex + 1}월 ${viewMode === 'calendar' ? '캘린더' : '스프레드시트'} 지출 일정`}
         >
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-2">
@@ -244,90 +264,167 @@ export default function HomePage() {
               >
                 이번 달
               </button>
+              <div className="view-switcher" role="group" aria-label="보기 방식 선택">
+                <button
+                  type="button"
+                  className={`view-switcher-button ${viewMode === 'calendar' ? 'view-switcher-button-active' : ''}`}
+                  aria-pressed={viewMode === 'calendar'}
+                  onClick={() => setViewMode('calendar')}
+                >
+                  캘린더
+                </button>
+                <button
+                  type="button"
+                  className={`view-switcher-button ${viewMode === 'spreadsheet' ? 'view-switcher-button-active' : ''}`}
+                  aria-pressed={viewMode === 'spreadsheet'}
+                  onClick={() => setViewMode('spreadsheet')}
+                >
+                  스프레드시트
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
-            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-emerald-500" />고정지출</span>
-            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독료</span>
-            <span>각 날짜: 전체 지출 합계</span>
-          </div>
-
-          <div className="calendar-grid border-b border-slate-200 bg-slate-50/70">
-            {WEEKDAYS.map((weekday, index) => (
-              <div
-                key={weekday}
-                className={`py-2 text-center text-xs font-bold ${
-                  index === 0
-                    ? 'text-rose-500'
-                    : index === 6
-                      ? 'text-blue-500'
-                      : 'text-slate-400'
-                }`}
-              >
-                {weekday}
+          {viewMode === 'calendar' ? (
+            <>
+              <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-emerald-500" />고정지출</span>
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독료</span>
+                <span>각 날짜: 전체 지출 합계</span>
               </div>
-            ))}
-          </div>
 
-          <div className="calendar-grid">
-            {calendarCells.map((day, index) => {
-              const dayEntries = day ? entriesByDay.get(day) ?? [] : [];
-              const isToday =
-                day !== null && `${monthKey}-${String(day).padStart(2, '0')}` === today;
-              return (
-                <div
-                  key={`${index}-${day ?? 'empty'}`}
-                  className={`calendar-cell ${day === null ? 'calendar-cell-empty' : ''}`}
-                >
-                  {day !== null && (
-                    <>
-                      <div
-                        className={`calendar-day ${
-                          index % 7 === 0
-                            ? 'calendar-day-sunday'
-                            : index % 7 === 6
-                              ? 'calendar-day-saturday'
-                              : ''
-                        } ${isToday ? 'calendar-day-today' : ''}`}
-                      >
-                        {day}
-                      </div>
-                      <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
-                        <div>지출 {formatWon(dailyTotals.get(day) ?? 0)}</div>
-                        <div className="text-blue-600">
-                          잔액 {balanceByDay.get(day) === null ? '—' : formatWon(balanceByDay.get(day) ?? 0)}
-                        </div>
-                      </div>
-                      <Link href={`/subscriptions/form?date=${monthKey}-${String(day).padStart(2, '0')}`} className="mt-1 block text-sm font-bold leading-none text-slate-400 hover:text-slate-700" aria-label={`${day}일 지출 추가`}>
-                        +
-                      </Link>
-                      <div className="mt-2 space-y-1.5">
-                        {dayEntries.map((entry) => (
-                          <Link
-                            key={entry.id}
-                            href={`/subscriptions/${entry.id}`}
-                            className={`calendar-entry ${entry.expense_type === 'fixed' ? 'calendar-entry-fixed' : 'calendar-entry-subscription'}`}
-                            title={`${entry.name} · ${formatBilling(entry)} · ${formatWon(entry.price)}${
-                              entry.description ? ` · ${entry.description}` : ''
-                            }${
-                              entry.expires_at ? ` · ${entry.expires_at} 만료` : ''
-                            }`}
+              <div className="calendar-grid border-b border-slate-200 bg-slate-50/70">
+                {WEEKDAYS.map((weekday, index) => (
+                  <div
+                    key={weekday}
+                    className={`py-2 text-center text-xs font-bold ${
+                      index === 0
+                        ? 'text-rose-500'
+                        : index === 6
+                          ? 'text-blue-500'
+                          : 'text-slate-400'
+                    }`}
+                  >
+                    {weekday}
+                  </div>
+                ))}
+              </div>
+
+              <div className="calendar-grid">
+                {calendarCells.map((day, index) => {
+                  const dayEntries = day ? entriesByDay.get(day) ?? [] : [];
+                  const isToday =
+                    day !== null && `${monthKey}-${String(day).padStart(2, '0')}` === today;
+                  return (
+                    <div
+                      key={`${index}-${day ?? 'empty'}`}
+                      className={`calendar-cell ${day === null ? 'calendar-cell-empty' : ''}`}
+                    >
+                      {day !== null && (
+                        <>
+                          <div
+                            className={`calendar-day ${
+                              index % 7 === 0
+                                ? 'calendar-day-sunday'
+                                : index % 7 === 6
+                                  ? 'calendar-day-saturday'
+                                  : ''
+                            } ${isToday ? 'calendar-day-today' : ''}`}
                           >
-                            <span className="calendar-entry-name">
-                              <span className="block">{entry.name}{entry.billing_cycle === 'annual' ? ' · 연' : ''}</span>
-                              {entry.description && <span className="calendar-entry-description">{entry.description}</span>}
-                            </span>
-                            <span className="calendar-entry-price">{formatWon(entry.price)}</span>
+                            {day}
+                          </div>
+                          <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
+                            <div>지출 {formatWon(dailyTotals.get(day) ?? 0)}</div>
+                            <div className="text-blue-600">
+                              잔액 {balanceByDay.get(day) === null ? '—' : formatWon(balanceByDay.get(day) ?? 0)}
+                            </div>
+                          </div>
+                          <Link href={`/subscriptions/form?date=${monthKey}-${String(day).padStart(2, '0')}`} className="mt-1 block text-sm font-bold leading-none text-slate-400 hover:text-slate-700" aria-label={`${day}일 지출 추가`}>
+                            +
                           </Link>
-                        ))}
-                      </div>
-                    </>
+                          <div className="mt-2 space-y-1.5">
+                            {dayEntries.map((entry) => (
+                              <Link
+                                key={entry.id}
+                                href={`/subscriptions/${entry.id}`}
+                                className={`calendar-entry ${entry.expense_type === 'fixed' ? 'calendar-entry-fixed' : 'calendar-entry-subscription'}`}
+                                title={`${entry.name} · ${formatBilling(entry)} · ${formatWon(entry.price)}${
+                                  entry.description ? ` · ${entry.description}` : ''
+                                }${
+                                  entry.expires_at ? ` · ${entry.expires_at} 만료` : ''
+                                }`}
+                              >
+                                <span className="calendar-entry-name">
+                                  <span className="block">{entry.name}{entry.billing_cycle === 'annual' ? ' · 연' : ''}</span>
+                                  {entry.description && <span className="calendar-entry-description">{entry.description}</span>}
+                                </span>
+                                <span className="calendar-entry-price">{formatWon(entry.price)}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="spreadsheet-wrap">
+              <table className="spreadsheet-table">
+                <caption className="sr-only">{view.year}년 {view.monthIndex + 1}월 지출 목록</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">날짜</th>
+                    <th scope="col">구분</th>
+                    <th scope="col">내역</th>
+                    <th scope="col">내용</th>
+                    <th scope="col">반복</th>
+                    <th scope="col" className="spreadsheet-number">예정금액</th>
+                    <th scope="col" className="spreadsheet-number">예상잔액</th>
+                    <th scope="col"><span className="sr-only">상세</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spreadsheetEntries.length > 0 ? spreadsheetEntries.map(({ entry, scheduledDate, projectedBalance }) => (
+                    <tr key={entry.id}>
+                      <td className="spreadsheet-date">{scheduledDate}</td>
+                      <td>
+                        <span className={`expense-badge ${entry.expense_type === 'fixed' ? 'expense-badge-fixed' : 'expense-badge-subscription'}`}>
+                          {entry.expense_type === 'fixed' ? '고정지출' : '구독료'}
+                        </span>
+                      </td>
+                      <td className="spreadsheet-name">{entry.name}</td>
+                      <td className="spreadsheet-description">{entry.description || '—'}</td>
+                      <td>{entry.schedule_type === 'one_time' ? '한 번만' : formatBilling(entry)}</td>
+                      <td className="spreadsheet-number spreadsheet-price">{formatWon(entry.price)}</td>
+                      <td className="spreadsheet-number spreadsheet-balance">
+                        {projectedBalance === null ? '—' : formatWon(projectedBalance)}
+                      </td>
+                      <td>
+                        <Link className="spreadsheet-detail-link" href={`/subscriptions/${entry.id}`}>
+                          상세
+                        </Link>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={8} className="spreadsheet-empty">이 달에 예정된 지출이 없습니다.</td>
+                    </tr>
                   )}
-                </div>
-              );
-            })}
-          </div>
+                </tbody>
+                {spreadsheetEntries.length > 0 && (
+                  <tfoot>
+                    <tr>
+                      <th scope="row" colSpan={5}>합계</th>
+                      <td className="spreadsheet-number">{formatWon(minimumExpenditure)}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          )}
         </section>
       </div>
 
