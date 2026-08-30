@@ -333,8 +333,24 @@ a {
   font-weight: 600;
 }
 
-.spreadsheet-table tbody tr:hover {
+.spreadsheet-entry-row:hover {
   background: #fff8fa;
+}
+
+.spreadsheet-group + .spreadsheet-group tr:first-child > * {
+  border-top: 2px solid var(--line);
+}
+
+.spreadsheet-group-subtotal th,
+.spreadsheet-group-subtotal td {
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.spreadsheet-group-subtotal th {
+  text-align: right;
 }
 
 .spreadsheet-table tfoot th,
@@ -355,8 +371,19 @@ a {
 }
 
 .spreadsheet-date {
+  min-width: 8.5rem;
+  background: #fffafb;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  vertical-align: top !important;
+}
+
+.spreadsheet-date-count {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.6875rem;
   font-weight: 500;
 }
 

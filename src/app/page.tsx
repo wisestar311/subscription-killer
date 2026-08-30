@@ -17,6 +17,19 @@ import type { Profile, Subscription } from '@/types/subscription';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 type ViewMode = 'calendar' | 'spreadsheet';
+type SpreadsheetRow = {
+  entry: Subscription;
+  day: number;
+  scheduledDate: string;
+  projectedBalance: number | null;
+};
+
+type SpreadsheetGroup = {
+  scheduledDate: string;
+  projectedBalance: number | null;
+  total: number;
+  rows: SpreadsheetRow[];
+};
 
 function formatWon(value: number) {
   return `${value.toLocaleString('ko-KR')}원`;
@@ -39,6 +52,7 @@ export default function HomePage() {
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,6 +69,7 @@ export default function HomePage() {
       router.replace('/login');
       return;
     }
+    setUserId(user.id);
 
     const [subscriptionsResult, profileResult] = await Promise.all([
       supabase
@@ -83,6 +98,43 @@ export default function HomePage() {
   useEffect(() => {
     void fetchDashboard();
   }, [fetchDashboard]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const syncBalance = async () => {
+      const { data, error: balanceError } = await supabase
+        .from('profiles')
+        .select('id, telegram_chat_id, current_balance, balance_updated_at, balance_source')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!balanceError && data) setProfile(data as Profile);
+    };
+
+    const channel = supabase
+      .channel(`profile-balance-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        },
+        (payload) => setProfile(payload.new as Profile),
+      )
+      .subscribe();
+    const balancePoll = window.setInterval(() => void syncBalance(), 15_000);
+    const syncOnFocus = () => void syncBalance();
+    window.addEventListener('focus', syncOnFocus);
+
+    return () => {
+      window.clearInterval(balancePoll);
+      window.removeEventListener('focus', syncOnFocus);
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, userId]);
 
   const calendarCells = useMemo(
     () => getCalendarCells(view.year, view.monthIndex),
@@ -152,7 +204,7 @@ export default function HomePage() {
     }
     return result;
   }, [currentBalance, dailyTotals, view]);
-  const spreadsheetEntries = useMemo(
+  const spreadsheetEntries = useMemo<SpreadsheetRow[]>(
     () =>
       scheduledSubscriptions
         .map((entry) => {
@@ -170,6 +222,27 @@ export default function HomePage() {
         .sort((a, b) => a.day - b.day || a.entry.name.localeCompare(b.entry.name, 'ko')),
     [balanceByDay, monthKey, scheduledSubscriptions, view],
   );
+  const spreadsheetGroups = useMemo<SpreadsheetGroup[]>(() => {
+    const groups: SpreadsheetGroup[] = [];
+
+    for (const row of spreadsheetEntries) {
+      const currentGroup = groups.at(-1);
+      if (!currentGroup || currentGroup.scheduledDate !== row.scheduledDate) {
+        groups.push({
+          scheduledDate: row.scheduledDate,
+          projectedBalance: row.projectedBalance,
+          total: row.entry.price,
+          rows: [row],
+        });
+        continue;
+      }
+
+      currentGroup.rows.push(row);
+      currentGroup.total += row.entry.price;
+    }
+
+    return groups;
+  }, [spreadsheetEntries]);
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
   }
@@ -249,11 +322,11 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center justify-end gap-3">
               <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-sm">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">현재 잔액</p>
-                <p className="mt-0.5 text-sm font-bold text-slate-950">
+                <p className="mt-0.5 text-sm font-bold text-slate-950" aria-live="polite">
                   {currentBalance === null ? '연동 필요' : formatWon(currentBalance)}
                 </p>
                 <p className="text-[10px] text-slate-400">
-                  {profile?.balance_updated_at ? '메시지 연동됨' : 'iPhone 메시지 연동 필요'}
+                  {profile?.balance_updated_at ? '메시지 실시간 연동됨' : 'iPhone 메시지 연동 필요'}
                 </p>
               </div>
               <button
@@ -381,39 +454,55 @@ export default function HomePage() {
                     <th scope="col">내용</th>
                     <th scope="col">반복</th>
                     <th scope="col" className="spreadsheet-number">예정금액</th>
-                    <th scope="col" className="spreadsheet-number">예상잔액</th>
+                    <th scope="col" className="spreadsheet-number">잔액</th>
                     <th scope="col"><span className="sr-only">상세</span></th>
                   </tr>
                 </thead>
-                <tbody>
-                  {spreadsheetEntries.length > 0 ? spreadsheetEntries.map(({ entry, scheduledDate, projectedBalance }) => (
-                    <tr key={entry.id}>
-                      <td className="spreadsheet-date">{scheduledDate}</td>
-                      <td>
-                        <span className={`expense-badge ${entry.expense_type === 'fixed' ? 'expense-badge-fixed' : 'expense-badge-subscription'}`}>
-                          {entry.expense_type === 'fixed' ? '고정지출' : '구독료'}
-                        </span>
-                      </td>
-                      <td className="spreadsheet-name">{entry.name}</td>
-                      <td className="spreadsheet-description">{entry.description || '—'}</td>
-                      <td>{entry.schedule_type === 'one_time' ? '한 번만' : formatBilling(entry)}</td>
-                      <td className="spreadsheet-number spreadsheet-price">{formatWon(entry.price)}</td>
-                      <td className="spreadsheet-number spreadsheet-balance">
-                        {projectedBalance === null ? '—' : formatWon(projectedBalance)}
-                      </td>
-                      <td>
-                        <Link className="spreadsheet-detail-link" href={`/subscriptions/${entry.id}`}>
-                          상세
-                        </Link>
-                      </td>
+                {spreadsheetGroups.length > 0 ? spreadsheetGroups.map((group) => (
+                  <tbody key={group.scheduledDate} className="spreadsheet-group">
+                    {group.rows.map(({ entry }, rowIndex) => (
+                      <tr key={entry.id} className="spreadsheet-entry-row">
+                        {rowIndex === 0 && (
+                          <td className="spreadsheet-date" rowSpan={group.rows.length + 1}>
+                            {group.scheduledDate}
+                            <span className="spreadsheet-date-count">{group.rows.length}건</span>
+                          </td>
+                        )}
+                        <td>
+                          <span className={`expense-badge ${entry.expense_type === 'fixed' ? 'expense-badge-fixed' : 'expense-badge-subscription'}`}>
+                            {entry.expense_type === 'fixed' ? '고정지출' : '구독료'}
+                          </span>
+                        </td>
+                        <td className="spreadsheet-name">{entry.name}</td>
+                        <td className="spreadsheet-description">{entry.description || '—'}</td>
+                        <td>{entry.schedule_type === 'one_time' ? '한 번만' : formatBilling(entry)}</td>
+                        <td className="spreadsheet-number spreadsheet-price">{formatWon(entry.price)}</td>
+                        {rowIndex === 0 && (
+                          <td className="spreadsheet-number spreadsheet-balance" rowSpan={group.rows.length + 1}>
+                            {group.projectedBalance === null ? '—' : formatWon(group.projectedBalance)}
+                          </td>
+                        )}
+                        <td>
+                          <Link className="spreadsheet-detail-link" href={`/subscriptions/${entry.id}`}>
+                            상세
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="spreadsheet-group-subtotal">
+                      <th scope="row" colSpan={4}>날짜 소계</th>
+                      <td className="spreadsheet-number">{formatWon(group.total)}</td>
+                      <td />
                     </tr>
-                  )) : (
+                  </tbody>
+                )) : (
+                  <tbody>
                     <tr>
                       <td colSpan={8} className="spreadsheet-empty">이 달에 예정된 지출이 없습니다.</td>
                     </tr>
-                  )}
-                </tbody>
-                {spreadsheetEntries.length > 0 && (
+                  </tbody>
+                )}
+                {spreadsheetGroups.length > 0 && (
                   <tfoot>
                     <tr>
                       <th scope="row" colSpan={5}>합계</th>
