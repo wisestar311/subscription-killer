@@ -337,6 +337,33 @@ a {
   background: #fff8fa;
 }
 
+.spreadsheet-section-heading th {
+  border-top: 3px solid var(--surface);
+  padding: 0.9rem 1rem;
+}
+
+.spreadsheet-section-heading th > span:first-child {
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.spreadsheet-section-heading th > span:last-child {
+  float: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.spreadsheet-section-heading-subscription th {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.spreadsheet-section-heading-fixed th {
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .spreadsheet-group + .spreadsheet-group tr:first-child > * {
   border-top: 2px solid var(--line);
 }

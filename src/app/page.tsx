@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -30,6 +30,41 @@ type SpreadsheetGroup = {
   total: number;
   rows: SpreadsheetRow[];
 };
+
+type SpreadsheetSection = {
+  expenseType: Subscription['expense_type'];
+  label: string;
+  total: number;
+  count: number;
+  groups: SpreadsheetGroup[];
+};
+
+const EXPENSE_SECTIONS: Array<Pick<SpreadsheetSection, 'expenseType' | 'label'>> = [
+  { expenseType: 'subscription', label: '구독' },
+  { expenseType: 'fixed', label: '고정지출' },
+];
+
+function groupSpreadsheetRows(rows: SpreadsheetRow[]) {
+  const groups: SpreadsheetGroup[] = [];
+
+  for (const row of rows) {
+    const currentGroup = groups.at(-1);
+    if (!currentGroup || currentGroup.scheduledDate !== row.scheduledDate) {
+      groups.push({
+        scheduledDate: row.scheduledDate,
+        projectedBalance: row.projectedBalance,
+        total: row.entry.price,
+        rows: [row],
+      });
+      continue;
+    }
+
+    currentGroup.rows.push(row);
+    currentGroup.total += row.entry.price;
+  }
+
+  return groups;
+}
 
 function formatWon(value: number) {
   return `${value.toLocaleString('ko-KR')}원`;
@@ -222,27 +257,23 @@ export default function HomePage() {
         .sort((a, b) => a.day - b.day || a.entry.name.localeCompare(b.entry.name, 'ko')),
     [balanceByDay, monthKey, scheduledSubscriptions, view],
   );
-  const spreadsheetGroups = useMemo<SpreadsheetGroup[]>(() => {
-    const groups: SpreadsheetGroup[] = [];
+  const spreadsheetSections = useMemo<SpreadsheetSection[]>(
+    () =>
+      EXPENSE_SECTIONS.map(({ expenseType, label }) => {
+        const rows = spreadsheetEntries.filter(
+          ({ entry }) => entry.expense_type === expenseType,
+        );
 
-    for (const row of spreadsheetEntries) {
-      const currentGroup = groups.at(-1);
-      if (!currentGroup || currentGroup.scheduledDate !== row.scheduledDate) {
-        groups.push({
-          scheduledDate: row.scheduledDate,
-          projectedBalance: row.projectedBalance,
-          total: row.entry.price,
-          rows: [row],
-        });
-        continue;
-      }
-
-      currentGroup.rows.push(row);
-      currentGroup.total += row.entry.price;
-    }
-
-    return groups;
-  }, [spreadsheetEntries]);
+        return {
+          expenseType,
+          label,
+          total: rows.reduce((total, { entry }) => total + entry.price, 0),
+          count: rows.length,
+          groups: groupSpreadsheetRows(rows),
+        };
+      }).filter(({ count }) => count > 0),
+    [spreadsheetEntries],
+  );
   function changeMonth(amount: number) {
     setView((current) => moveMonth(current.year, current.monthIndex, amount));
   }
@@ -279,7 +310,7 @@ export default function HomePage() {
         <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <article className="summary-card summary-card-dark md:col-span-1">
             <p className="summary-label text-white/60">
-              {view.monthIndex + 1}월 예상 구독료
+              {view.monthIndex + 1}월 예상 구독
             </p>
             <p className="mt-3 text-3xl font-semibold tracking-tight">
               {formatWon(subscriptionTotal)}
@@ -362,7 +393,7 @@ export default function HomePage() {
             <>
               <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 text-[11px] font-medium text-slate-500 sm:px-6">
                 <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-emerald-500" />고정지출</span>
-                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독료</span>
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />구독</span>
                 <span>각 날짜: 전체 지출 합계</span>
               </div>
 
@@ -458,43 +489,55 @@ export default function HomePage() {
                     <th scope="col"><span className="sr-only">상세</span></th>
                   </tr>
                 </thead>
-                {spreadsheetGroups.length > 0 ? spreadsheetGroups.map((group) => (
-                  <tbody key={group.scheduledDate} className="spreadsheet-group">
-                    {group.rows.map(({ entry }, rowIndex) => (
-                      <tr key={entry.id} className="spreadsheet-entry-row">
-                        {rowIndex === 0 && (
-                          <td className="spreadsheet-date" rowSpan={group.rows.length + 1}>
-                            {group.scheduledDate}
-                            <span className="spreadsheet-date-count">{group.rows.length}건</span>
-                          </td>
-                        )}
-                        <td>
-                          <span className={`expense-badge ${entry.expense_type === 'fixed' ? 'expense-badge-fixed' : 'expense-badge-subscription'}`}>
-                            {entry.expense_type === 'fixed' ? '고정지출' : '구독료'}
-                          </span>
-                        </td>
-                        <td className="spreadsheet-name">{entry.name}</td>
-                        <td className="spreadsheet-description">{entry.description || '—'}</td>
-                        <td>{entry.schedule_type === 'one_time' ? '한 번만' : formatBilling(entry)}</td>
-                        <td className="spreadsheet-number spreadsheet-price">{formatWon(entry.price)}</td>
-                        {rowIndex === 0 && (
-                          <td className="spreadsheet-number spreadsheet-balance" rowSpan={group.rows.length + 1}>
-                            {group.projectedBalance === null ? '—' : formatWon(group.projectedBalance)}
-                          </td>
-                        )}
-                        <td>
-                          <Link className="spreadsheet-detail-link" href={`/subscriptions/${entry.id}`}>
-                            상세
-                          </Link>
-                        </td>
+                {spreadsheetSections.length > 0 ? spreadsheetSections.map((section) => (
+                  <Fragment key={section.expenseType}>
+                    <tbody className={`spreadsheet-section-heading spreadsheet-section-heading-${section.expenseType}`}>
+                      <tr>
+                        <th colSpan={8} scope="rowgroup">
+                          <span>{section.label}</span>
+                          <span>{section.count}건 · {formatWon(section.total)}</span>
+                        </th>
                       </tr>
+                    </tbody>
+                    {section.groups.map((group) => (
+                      <tbody key={`${section.expenseType}-${group.scheduledDate}`} className="spreadsheet-group">
+                        {group.rows.map(({ entry }, rowIndex) => (
+                          <tr key={entry.id} className="spreadsheet-entry-row">
+                            {rowIndex === 0 && (
+                              <td className="spreadsheet-date" rowSpan={group.rows.length + 1}>
+                                {group.scheduledDate}
+                                <span className="spreadsheet-date-count">{group.rows.length}건</span>
+                              </td>
+                            )}
+                            <td>
+                              <span className={`expense-badge ${entry.expense_type === 'fixed' ? 'expense-badge-fixed' : 'expense-badge-subscription'}`}>
+                                {entry.expense_type === 'fixed' ? '고정지출' : '구독'}
+                              </span>
+                            </td>
+                            <td className="spreadsheet-name">{entry.name}</td>
+                            <td className="spreadsheet-description">{entry.description || '—'}</td>
+                            <td>{entry.schedule_type === 'one_time' ? '한 번만' : formatBilling(entry)}</td>
+                            <td className="spreadsheet-number spreadsheet-price">{formatWon(entry.price)}</td>
+                            {rowIndex === 0 && (
+                              <td className="spreadsheet-number spreadsheet-balance" rowSpan={group.rows.length + 1}>
+                                {group.projectedBalance === null ? '—' : formatWon(group.projectedBalance)}
+                              </td>
+                            )}
+                            <td>
+                              <Link className="spreadsheet-detail-link" href={`/subscriptions/${entry.id}`}>
+                                상세
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="spreadsheet-group-subtotal">
+                          <th scope="row" colSpan={4}>날짜 소계</th>
+                          <td className="spreadsheet-number">{formatWon(group.total)}</td>
+                          <td />
+                        </tr>
+                      </tbody>
                     ))}
-                    <tr className="spreadsheet-group-subtotal">
-                      <th scope="row" colSpan={4}>날짜 소계</th>
-                      <td className="spreadsheet-number">{formatWon(group.total)}</td>
-                      <td />
-                    </tr>
-                  </tbody>
+                  </Fragment>
                 )) : (
                   <tbody>
                     <tr>
@@ -502,7 +545,7 @@ export default function HomePage() {
                     </tr>
                   </tbody>
                 )}
-                {spreadsheetGroups.length > 0 && (
+                {spreadsheetSections.length > 0 && (
                   <tfoot>
                     <tr>
                       <th scope="row" colSpan={5}>합계</th>
