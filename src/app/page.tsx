@@ -21,12 +21,12 @@ type SpreadsheetRow = {
   entry: Subscription;
   day: number;
   scheduledDate: string;
-  projectedBalance: number | null;
+  balance: number | null;
 };
 
 type SpreadsheetGroup = {
   scheduledDate: string;
-  projectedBalance: number | null;
+  balance: number | null;
   total: number;
   rows: SpreadsheetRow[];
   categories: SpreadsheetCategory[];
@@ -53,7 +53,7 @@ function groupSpreadsheetRows(rows: SpreadsheetRow[]) {
     if (!currentGroup || currentGroup.scheduledDate !== row.scheduledDate) {
       groups.push({
         scheduledDate: row.scheduledDate,
-        projectedBalance: row.projectedBalance,
+        balance: row.balance,
         total: row.entry.price,
         rows: [row],
       });
@@ -245,16 +245,6 @@ export default function HomePage() {
     }
     return result;
   }, [entriesByDay]);
-  const balanceByDay = useMemo(() => {
-    const result = new Map<number, number | null>();
-    let scheduledBefore = 0;
-    const daysInMonth = new Date(view.year, view.monthIndex + 1, 0).getDate();
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      scheduledBefore += dailyTotals.get(day) ?? 0;
-      result.set(day, currentBalance === null ? null : currentBalance - scheduledBefore);
-    }
-    return result;
-  }, [currentBalance, dailyTotals, view]);
   const spreadsheetEntries = useMemo<SpreadsheetRow[]>(
     () =>
       scheduledSubscriptions
@@ -267,11 +257,11 @@ export default function HomePage() {
             entry,
             day,
             scheduledDate: `${monthKey}-${String(day).padStart(2, '0')}`,
-            projectedBalance: balanceByDay.get(day) ?? null,
+            balance: currentBalance,
           };
         })
         .sort((a, b) => a.day - b.day || a.entry.name.localeCompare(b.entry.name, 'ko')),
-    [balanceByDay, monthKey, scheduledSubscriptions, view],
+    [currentBalance, monthKey, scheduledSubscriptions, view],
   );
   const spreadsheetGroups = useMemo<SpreadsheetGroup[]>(
     () => groupSpreadsheetRows(spreadsheetEntries),
@@ -443,7 +433,7 @@ export default function HomePage() {
                           <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-slate-500">
                             <div>지출 {formatWon(dailyTotals.get(day) ?? 0)}</div>
                             <div className="text-blue-600">
-                              잔액 {balanceByDay.get(day) === null ? '—' : formatWon(balanceByDay.get(day) ?? 0)}
+                              잔액 {currentBalance === null ? '—' : formatWon(currentBalance)}
                             </div>
                           </div>
                           <Link href={`/subscriptions/form?date=${monthKey}-${String(day).padStart(2, '0')}`} className="mt-1 block text-sm font-bold leading-none text-slate-400 hover:text-slate-700" aria-label={`${day}일 지출 추가`}>
@@ -505,7 +495,7 @@ export default function HomePage() {
                         </th>
                         <td className="spreadsheet-date-balance">
                           <small>잔액</small>
-                          {group.projectedBalance === null ? '—' : formatWon(group.projectedBalance)}
+                          {group.balance === null ? '—' : formatWon(group.balance)}
                         </td>
                         <td />
                       </tr>
