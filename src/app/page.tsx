@@ -165,7 +165,7 @@ export default function HomePage() {
   return (
     <main className="app-shell min-h-screen pb-28">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        <header className="mb-8 flex items-center justify-between">
+        <header className="top-nav mb-8 flex items-center justify-between">
           <div>
             <p className="eyebrow">EXPENDITURE CONTROL</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
@@ -196,16 +196,16 @@ export default function HomePage() {
             </p>
           </article>
 
-          <article className="summary-card border-amber-100 bg-amber-50/60">
-            <p className="summary-label text-amber-700">{view.monthIndex + 1}월 예상 고정지출</p>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">{formatWon(fixedTotal)}</p>
-            <p className="mt-5 text-xs text-amber-700/70">고정지출 {scheduledSubscriptions.filter((entry) => entry.expense_type === 'fixed').length}건</p>
+          <article className="summary-card summary-card-fixed">
+            <p className="summary-label">{view.monthIndex + 1}월 예상 고정지출</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight">{formatWon(fixedTotal)}</p>
+            <p className="mt-5 text-xs">고정지출 {scheduledSubscriptions.filter((entry) => entry.expense_type === 'fixed').length}건</p>
           </article>
 
-          <article className="summary-card border-blue-100 bg-blue-50/60">
-            <p className="summary-label text-blue-700">{view.monthIndex + 1}월 전체 예정지출</p>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-blue-950">{formatWon(minimumExpenditure)}</p>
-            <p className="mt-5 text-xs text-blue-700/70">최소 필요 지출 합계</p>
+          <article className="summary-card summary-card-total">
+            <p className="summary-label">{view.monthIndex + 1}월 전체 예정지출</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight">{formatWon(minimumExpenditure)}</p>
+            <p className="mt-5 text-xs">최소 필요 지출 합계</p>
           </article>
 
         </section>
